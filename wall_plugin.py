@@ -1,61 +1,50 @@
-import os
+# wall_plugin.py
+"""
+Exteragram Wall Plugin
+This plugin integrates a wall feature allowing for comments, synchronization
+with user accounts, and seamless UI updates.
+"""
+
 import json
 import requests
 
-# Configuration
-GITHUB_TOKEN = os.getenv('GITHUB_TOKEN')  # GitHub token for authentication
-REPO_OWNER = 'Sunktuz'
-REPO_NAME = 'exteragram-wall-plugin'
-
-# Initialization
-class WallPlugin:
+class ExteragramWall:
     def __init__(self):
-        self.data = {}
-        self.load_data()
-        self.sync_with_github()
+        self.posts = []
 
-    def load_data(self):
-        # Load data from a local file or any source
-        try:
-            with open('data.json', 'r') as f:
-                self.data = json.load(f)
-        except FileNotFoundError:
-            self.data = {}  # Start with empty data
+    def add_post(self, user_id, content):
+        """Add a new post to the wall."""
+        post = {
+            'user_id': user_id,
+            'content': content,
+            'comments': []
+        }
+        self.posts.append(post)
+        self.sync_wall()
 
-    def save_data(self):
-        # Save data to a local file
-        with open('data.json', 'w') as f:
-            json.dump(self.data, f)
+    def add_comment(self, post_id, user_id, comment):
+        """Add a comment to a post."""
+        if post_id < len(self.posts):
+            self.posts[post_id]['comments'].append({
+                'user_id': user_id,
+                'comment': comment
+            })
+            self.sync_wall()
 
-    def add_data(self, entry):
-        self.data.append(entry)
-        self.save_data()
-        self.sync_with_github()
+    def sync_wall(self):
+        """Synchronize wall data with the server."""
+        # Example server endpoint
+        server_url = "https://yourserver.com/api/wall"
+        response = requests.post(server_url, json=self.posts)
+        return response.status_code
 
-    def sync_with_github(self):
-        url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data.json'
-        headers = {'Authorization': f'token {GITHUB_TOKEN}', 'Content-Type': 'application/json'}
-        response = requests.put(url, headers=headers, json={
-            'message': 'Sync data',
-            'content': self.encode_data(),
-            'sha': self.get_file_sha()
-        })
-        if response.status_code == 201:
-            print('Data synced successfully.')
-        else:
-            print('Failed to sync data:', response.json())
+    def get_wall(self):
+        """Fetch the wall posts and comments."""
+        return json.dumps(self.posts, indent=4)
 
-    def encode_data(self):
-        return base64.b64encode(json.dumps(self.data).encode('utf-8')).decode('utf-8')
-
-    def get_file_sha(self):
-        url = f'https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data.json'
-        response = requests.get(url, headers={'Authorization': f'token {GITHUB_TOKEN}'})
-        if response.status_code == 200:
-            return response.json()['sha']
-        return None
-
-# Example of plugin usage
-if __name__ == '__main__':
-    plugin = WallPlugin()  
-    plugin.add_data({'message': 'Hello, world!'})  # Add sample data
+# Example usage
+if __name__ == "__main__":
+    wall = ExteragramWall()
+    wall.add_post("user123", "This is my first post!")
+    wall.add_comment(0, "user456", "Great post!")
+    print(wall.get_wall())
